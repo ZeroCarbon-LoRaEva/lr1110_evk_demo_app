@@ -1,109 +1,131 @@
-/**
- * @file      system_i2c.c
- *
- * @brief     MCU I2C-related functions
- *
- * Revised BSD License
- * Copyright Semtech Corporation 2020. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the Semtech corporation nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
+/*!
+* \file      i2c-board.c
+*
+* \brief     Target board I2C driver implementation
+*
+* \copyright Revised BSD License, see section \ref LICENSE.
+*
+* \code
+*                ______                              _
+*               / _____)             _              | |
+*              ( (____  _____ ____ _| |_ _____  ____| |__
+*               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
+*               _____) ) ____| | | || |_| ____( (___| | | |
+*              (______/|_____)_|_|_| \__)_____)\____)_| |_|
+*              (C)2013-2017 Semtech
+*
+* \endcode
+*
+* \author    Miguel Luis ( Semtech )
+*
+* \author    Gregory Cristian ( Semtech )
+*/
+//#include "sensor_poc_config.h"
+//#include "board-config.h"
+//#include "RE01_1500KB.h"
+//#include "utilities.h"
+//#include "i2c-board.h"
+#include "config_mode.h"
+#include "RE01_256KB.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "system.h"
 #include "system_i2c.h"
+#include "r_i2c_cmsis_api.h"
+#include "r_lpm_api.h"
 
-void system_i2c_init( void )
+/*!
+*  The value of the maximal timeout for I2C waiting loops
+*/
+#define TIMEOUT_MAX                                 0x8000
+
+volatile static uint8_t i2c_eventWait;
+
+
+extern ARM_DRIVER_I2C Driver_I2C0;
+extern ARM_DRIVER_I2C Driver_I2C1;
+
+
+void i2c0_callback(uint32_t event) __attribute__ ((section(".ramfunc")));
+void i2c1_callback(uint32_t event) __attribute__ ((section(".ramfunc")));
+
+
+void system_i2c_init( ARM_DRIVER_I2C *i2c_obj)
 {
-    LL_I2C_InitTypeDef I2C_InitStruct = { 0 };
+	  int err;
+	if (i2c_obj == &Driver_I2C0) {
+	    err=i2c_obj->Initialize(i2c0_callback); 
+	} else if (i2c_obj == &Driver_I2C1){
+	    err=i2c_obj->Initialize(i2c1_callback); 
+	} else {
+		err=1;
+	}
+  APP_ERR_HANDLER(err);
 
-    LL_GPIO_InitTypeDef GPIO_InitStruct = { 0 };
+  err = i2c_obj->PowerControl(ARM_POWER_FULL); 
+  APP_ERR_HANDLER(err);
 
-    LL_AHB2_GRP1_EnableClock( LL_AHB2_GRP1_PERIPH_GPIOB );
-    /**I2C1 GPIO Configuration
-    PB8   ------> I2C1_SCL
-    PB9   ------> I2C1_SDA
-    */
-    GPIO_InitStruct.Pin        = LL_GPIO_PIN_8 | LL_GPIO_PIN_9;
-    GPIO_InitStruct.Mode       = LL_GPIO_MODE_ALTERNATE;
-    GPIO_InitStruct.Speed      = LL_GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_OPENDRAIN;
-    GPIO_InitStruct.Pull       = LL_GPIO_PULL_UP;
-    GPIO_InitStruct.Alternate  = LL_GPIO_AF_4;
-    LL_GPIO_Init( GPIOB, &GPIO_InitStruct );
+  err = i2c_obj->Control(ARM_I2C_BUS_SPEED, ARM_I2C_BUS_SPEED_STANDARD);
+//  err = i2c_obj->Control(ARM_I2C_BUS_SPEED, ARM_I2C_BUS_SPEED_FAST);
+  APP_ERR_HANDLER(err);
 
-    /* Peripheral clock enable */
-    LL_APB1_GRP1_EnableClock( LL_APB1_GRP1_PERIPH_I2C1 );
 
-    /**I2C Initialization
-     */
-    LL_I2C_EnableAutoEndMode( I2C1 );
-    LL_I2C_DisableOwnAddress2( I2C1 );
-    LL_I2C_DisableGeneralCall( I2C1 );
-    LL_I2C_EnableClockStretching( I2C1 );
-    I2C_InitStruct.PeripheralMode  = LL_I2C_MODE_I2C;
-    I2C_InitStruct.Timing          = 0x10909CEC;
-    I2C_InitStruct.AnalogFilter    = LL_I2C_ANALOGFILTER_ENABLE;
-    I2C_InitStruct.DigitalFilter   = 0;
-    I2C_InitStruct.OwnAddress1     = 0;
-    I2C_InitStruct.TypeAcknowledge = LL_I2C_ACK;
-    I2C_InitStruct.OwnAddrSize     = LL_I2C_OWNADDRESS1_7BIT;
-    LL_I2C_Init( I2C1, &I2C_InitStruct );
-    LL_I2C_SetOwnAddress2( I2C1, 0, LL_I2C_OWNADDRESS2_NOMASK );
 }
 
-void system_i2c_write( const uint8_t address, const uint8_t* buffer_in, const uint8_t length, const bool repeated )
+void system_i2c_stop( ARM_DRIVER_I2C* i2c_obj)
 {
-    uint8_t i = 0;
-
-    LL_I2C_HandleTransfer( I2C1, address, LL_I2C_ADDRSLAVE_7BIT, length, LL_I2C_MODE_AUTOEND,
-                           LL_I2C_GENERATE_START_WRITE );
-
-    /* Loop until STOP flag is raised  */
-    while( !LL_I2C_IsActiveFlag_STOP( I2C1 ) )
-    {
-        if( LL_I2C_IsActiveFlag_TXIS( I2C1 ) )
-        {
-            LL_I2C_TransmitData8( I2C1, buffer_in[i++] );
-        }
-    }
-
-    LL_I2C_ClearFlag_STOP( I2C1 );
+	  int err;
+	if (i2c_obj == &Driver_I2C0) {
+        err = i2c_obj->Uninitialize();
+	    R_LPM_ModuleStop(LPM_MSTP_RIIC0);
+	} else if (i2c_obj == &Driver_I2C1){
+        err = i2c_obj->Uninitialize();
+	    R_LPM_ModuleStop(LPM_MSTP_RIIC1);
+	} else {
+		err=1;
+	}
+    APP_ERR_HANDLER(err);
 }
 
-void system_i2c_read( const uint8_t address, uint8_t* buffer_out, const uint8_t length, const bool repeated )
+
+// Repeated .. True-> Don't Send Stop Condition(Exist next data)  , False-> Send Stop Condition(Final Data)
+uint8_t system_i2c_write( ARM_DRIVER_I2C *i2c_obj,  uint8_t deviceAddr,  uint8_t *buffer, uint8_t size , const bool repeated )
 {
-    uint8_t i = 0;
+volatile   uint8_t status = ARM_DRIVER_ERROR;
+volatile   uint32_t timeout = 0x020000;
+  
+  i2c_eventWait = 0;
+  
+  status = i2c_obj->MasterTransmit(deviceAddr, buffer, size, repeated);
+  
+  while(i2c_eventWait == 0 && --timeout);
+  
+  return ((status == ARM_DRIVER_OK) && (i2c_eventWait != 0)) ? ARM_DRIVER_OK : ARM_DRIVER_ERROR;
+}
 
-    LL_I2C_HandleTransfer( I2C1, address, LL_I2C_ADDRSLAVE_7BIT, length, LL_I2C_MODE_AUTOEND,
-                           LL_I2C_GENERATE_START_READ );
 
-    /* Loop until STOP flag is raised  */
-    while( !LL_I2C_IsActiveFlag_STOP( I2C1 ) )
-    {
-        if( LL_I2C_IsActiveFlag_RXNE( I2C1 ) )
-        {
-            buffer_out[i++] = LL_I2C_ReceiveData8( I2C1 );
-        }
-    }
+uint8_t system_i2c_read(ARM_DRIVER_I2C* i2c_obj,  uint8_t deviceAddr, uint8_t *buffer, uint8_t size , const bool repeated)
+{
+volatile   uint8_t status = ARM_DRIVER_ERROR;
+volatile   uint32_t timeout = 0x020000;
+  
+  i2c_eventWait = 0;
+  
+  status = i2c_obj->MasterReceive(deviceAddr, buffer, size, repeated);
+  
+  while(i2c_eventWait == 0 && --timeout);
+  
+  return ((status == ARM_DRIVER_OK) && (i2c_eventWait != 0)) ? ARM_DRIVER_OK : ARM_DRIVER_ERROR;
+//  return ((status == ARM_DRIVER_OK) && (i2c_eventWait != 0)) ? SUCCESS : FAIL;
+}
 
-    LL_I2C_ClearFlag_STOP( I2C1 );
+
+void i2c0_callback(uint32_t event)
+{
+  i2c_eventWait = (uint8_t)event;
+}
+
+void i2c1_callback(uint32_t event)
+{
+  i2c_eventWait = (uint8_t)event;
 }

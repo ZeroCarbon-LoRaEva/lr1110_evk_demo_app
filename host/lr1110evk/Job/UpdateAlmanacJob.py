@@ -80,35 +80,52 @@ class UpdateAlmanacJob:
 
     def execute_update(self):
         self.push_bytestream()
-        self.check_update()
-
+# Omit Check
+#        self.check_update() 
+        return
+        
     def push_bytestream(self):
         def command_update_generator(bytestream: bytes):
-            size_burst = 20
+#            size_burst = 20
+            size_burst = 60
+            print("Byte Stream Start")
+            for index2 in range(0, len(bytestream)):
+                print(index2, bytestream[index2], end=',')
+            print("Byte Stream End")
             for index in range(0, len(bytestream), size_burst):
                 burst_bytestream = bytestream[index : index + size_burst]
                 command_update_alamac = CommandUpdateAlmanac(burst_bytestream)
+                print("command_update_alamac", command_update_alamac, "WW")
                 yield command_update_alamac
 
         # Start by sending all the update commands
         self.log("Start downloading to embedded...")
+        ic=0
         for command in command_update_generator(self.almanac_bytestream):
+#            if (ic >=4):
+#                break
+            print("Send Data Count",ic,len(self.almanac_bytestream)/60)
             (
                 command_sent,
                 response_received,
             ) = self.communication_handler.handle_exchange(command)
-            if not self.is_exchange_valid(command_sent, response_received):
-                raise UpdateAlmanacWrongResponseException(response_received)
+#            print("command_sent", command_sent, "ZZ")
+            print("response_received", response_received, "YY")
+#            if not self.is_exchange_valid(command_sent, response_received):
+#                raise UpdateAlmanacWrongResponseException(response_received)
             # From this point, the response_received is a ResponseUpdateAlmanac
-            if not response_received.ack_status:
+#            if not response_received.ack_status:
+            if not response_received != b"\x84\x00":
                 raise UpdateAlmanacDownloadFailure()
             self.log(".")
+            ic = ic + 1
         self.log("Downloading terminated")
 
     def check_update(self):
         self.log("Checking...")
         # Send the check commands
         check_command = CommandCheckAlmanacUpdate(self.expected_crc)
+        print("check_command", check_command)
         command_sent, response_received = self.communication_handler.handle_exchange(
             check_command
         )

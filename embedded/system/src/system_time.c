@@ -29,15 +29,26 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "RE01_256KB.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+#include "config_mode.h"
 #include "system_time.h"
-#include "stm32l4xx_ll_cortex.h"
-#include "stm32l4xx_ll_utils.h"
+#include "r_system_api.h"
+//#include "stm32l4xx_ll_cortex.h"
+//#include "stm32l4xx_ll_utils.h"
 
 volatile static uint32_t ticker = 0;
 
-void system_time_init( void ) { LL_SYSTICK_EnableIT( ); }
+void system_time_init( void ) {  }
+//void system_time_init( void ) { LL_SYSTICK_EnableIT( ); }
 
-void system_time_wait_ms( uint32_t time_in_ms ) { LL_mDelay( time_in_ms ); }
+__attribute__ ((section(".ramfunc"))) void system_time_wait_ms( uint32_t time_in_ms ) {
+	R_SYS_SoftwareDelay(time_in_ms, SYSTEM_DELAY_UNITS_MILLISECONDS);
+}
 
 void system_time_IncreaseTicker( void ) { ticker++; }
 

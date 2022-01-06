@@ -32,7 +32,7 @@
 #ifndef __DEMO_TRANSCEIVER_WIFI_INTERFACE_H__
 #define __DEMO_TRANSCEIVER_WIFI_INTERFACE_H__
 
-#include "demo_transceiver_interface.h"
+//#include "demo_transceiver_interface.h"
 #include <stdint.h>
 #include "demo_interface.h"
 #include "lr1110_wifi_types.h"

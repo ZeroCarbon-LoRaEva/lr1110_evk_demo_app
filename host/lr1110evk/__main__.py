@@ -1,3 +1,4 @@
+
 """
 Entry points for LR1110 Demo and Field tests
 
@@ -45,6 +46,41 @@ import pkg_resources
 from os import path, makedirs, getcwd
 from shutil import copyfile
 from serial.serialutil import SerialException
+
+
+from argparse import RawDescriptionHelpFormatter
+from .Job import (
+    UpdateAlmanacCheckFailure,
+    UpdateAlmanacDownloadFailure,
+    UpdateAlmanacWrongResponseException,
+    UpdateAlmanacJob,
+    LoggerException,
+)
+
+from .SerialExchange import (
+    SerialHandler,
+    CommunicationHandler,
+    SerialHanlerEmbeddedNotSetException,
+)
+
+#from .main_almanac_update2 import entry_point_update_almanac
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class PrintJsonSchemaAction(Action):
@@ -125,8 +161,18 @@ def test_cli():
 
 
 def entry_point_demo():
+#    print("Hello")
+    print("GNSS Demo Start")
+#    
+#    entry_point_update_almanac()
+#    
+#    
+#    return
+    
     default_device = "/dev/ttyACM0"
-    default_baud = 921600
+#    default_baud = 921600
+    default_baud = 115200
+#    default_baud = 460800
     default_wifi_server_port_number = GeoLocServiceClientWifi.get_default_port_number()
     default_gnss_server_port_number = GeoLocServiceClientGnss.get_default_port_number()
     default_wifi_server_base = GeoLocServiceClientWifi.get_default_base_url()
@@ -148,6 +194,10 @@ def entry_point_demo():
     parser.add_argument(
         "glsAuthenticationToken",
         help="HTTP header token to authenticate the Wi-Fi requests on LoRa Cloud Geolocation (GLS) server",
+    )
+    parser.add_argument(
+        "token",
+        help="HTTP header token to authenticate the Wi-Fi requests on (DAS) server",
     )
     parser.add_argument(
         "-s",
@@ -229,28 +279,24 @@ def entry_point_demo():
         ),
         default=None,
     )
-    multi_frame_arg_group = parser.add_mutually_exclusive_group()
-    multi_frame_arg_group.add_argument(
-        "--multi-frame-sliding",
-        action="store",
-        help="Enable multi-frame sliding strategy for GNSS solving and configure the depth. Default strategy for GNSS solving is single solve",
-        default=None,
-        type=int,
-    )
-    multi_frame_arg_group.add_argument(
-        "--multi-frame-grouping",
-        action="store",
-        help="Enable multi-frame grouping strategy for GNSS solving and configure the max length. Default strategy for GNSS solving is single solve",
-        default=None,
-        type=int,
-    )
     parser.add_argument(
         "--verbose", "-v", help="Verbose", action="store_true", default=False
     )
     parser.add_argument("--version", action="version", version=version)
+#    print(args)
+
     args = parser.parse_args()
+    args.gls=False
 
     configuration = DemoAppConfiguration.from_arg_parser(args)
+
+
+#    print(args)
+
+
+#    return
+
+
 
     try:
         reader = VcpReader(configuration)
@@ -258,10 +304,12 @@ def entry_point_demo():
         print("Failed to initialize serial device: '{}'".format(serial_exception))
         exit(1)
 
+
     reader.start_read_vcp()
 
     try:
-        reader.read_vcp_forever()
+#        print("PASS4")
+        reader.read_vcp_forever(args)
     except SerialException as serial_exception:
         print("Failure while reading serial: '{}'".format(serial_exception))
         exit(2)
@@ -269,9 +317,181 @@ def entry_point_demo():
         print("Bye\n")
 
 
+
+
 def drive_field_tests():
     test_cli()
 
 
+
+
+
+
+class ServerSolver:
+    HUMAN_READABLE_NAME = None
+    DEFAULT_DOMAIN = None
+    DEFAULT_PATH = None
+    HEADER_AUTH_TOKEN = None
+    HEADER_CONTENT_TYPE_TOKEN = None
+
+    def __init__(self, domain, path):
+        self.__domain = domain
+        self.__path = path
+
+    def build_url(self):
+        return "{}/{}".format(self.domain, self.path)
+
+    def build_header(self, auth_value):
+        return {
+            self.get_header_auth_token(): auth_value,
+            self.get_header_content_type_token(): "application/json",
+        }
+
+    @property
+    def domain(self):
+        return self.__domain
+
+    @domain.setter
+    def domain(self, domain):
+        self.__domain = domain
+
+    @property
+    def path(self):
+        return self.__path
+
+    @path.setter
+    def path(self, path):
+        self.__path = path
+
+    @classmethod
+    def build_default_server_solver(cls):
+        return cls(domain=cls.DEFAULT_DOMAIN, path=cls.DEFAULT_PATH,)
+
+    @classmethod
+    def get_header_content_type_token(cls):
+        return cls.HEADER_CONTENT_TYPE_TOKEN
+
+    @classmethod
+    def get_header_auth_token(cls):
+        return cls.HEADER_AUTH_TOKEN
+
+    @classmethod
+    def get_human_readable_name(cls):
+        return cls.HUMAN_READABLE_NAME
+
+    def __str__(self):
+        return "{} ({})".format(self.get_human_readable_name(), self.build_url())
+
+
+class GlsServerSolver(ServerSolver):
+    HUMAN_READABLE_NAME = "GLS"
+    DEFAULT_DOMAIN = "https://gls.loracloud.com"
+    DEFAULT_PATH = "api/v3/almanac/full"
+    HEADER_AUTH_TOKEN = "Ocp-Apim-Subscription-Key"
+    HEADER_CONTENT_TYPE_TOKEN = "Content-Type"
+
+
+class DasServerSolver(ServerSolver):
+    HUMAN_READABLE_NAME = "DAS"
+    DEFAULT_DOMAIN = "https://das.loracloud.com"
+    DEFAULT_PATH = "api/v1/almanac/full"
+    HEADER_AUTH_TOKEN = "Authorization"
+    HEADER_CONTENT_TYPE_TOKEN = "Accept"
+
+
+def entry_point_update_almanac():
+    default_device = "/dev/ttyACM0"
+    default_baud = 921600
+    default_log_filename = "log.log"
+    default_solver = DasServerSolver.build_default_server_solver()
+
+    description = """EVK Demo App companion software that update almanac of LR1110 device.
+    This software can fetch almanac from two servers:
+       - GeoLocation Server (GLS): default URL is {}
+       - Device and Application Server (DAS): default URL is {}
+    By default, {} server is used.
+
+    Optionnaly, almanac can also be read from file, which avoid contacting a server.""".format(
+        GlsServerSolver.build_default_server_solver().build_url(),
+        DasServerSolver.build_default_server_solver().build_url(),
+        default_solver,
+    )
+
+    version = pkg_resources.get_distribution("lr1110evk").version
+    parser = ArgumentParser(
+        description=description, formatter_class=RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "token", help="Authentication token to the selected server",
+    )
+    parser.add_argument(
+        "-g", "--gls", help="Use GLS server instead of DAS", action="store_true",
+    )
+    parser.add_argument(
+        "-u",
+        "--url-domain",
+        help="Modify the domain name of the URL to use when fetching almanac",
+        default=None,
+    )
+    parser.add_argument(
+        "-f",
+        "--almanac-file",
+        help="Get the almanac information from a file instead of downloading it from web API. In this case the authentication server token is not used",
+        default=None,
+    )
+    parser.add_argument(
+        "-d",
+        "--device-address",
+        help="Address of the device connecting the lr1110 (default={})".format(
+            default_device
+        ),
+        default=default_device,
+    )
+    parser.add_argument(
+        "-b",
+        "--device-baud",
+        help="Baud for communication with the lr1110 (default={})".format(default_baud),
+        default=default_baud,
+    )
+    parser.add_argument(
+        "-l",
+        "--log-filename",
+        help="File to use to store the log (default={})".format(default_log_filename),
+        default=default_log_filename,
+    )
+    parser.add_argument("--version", action="version", version=version)
+    args = parser.parse_args()
+#
+#
+
+
+
+    print(args)
+    return
+
+#
+    # Check whether user wants GLS or DAS
+    if args.gls is True:
+        solver = GlsServerSolver.build_default_server_solver()
+    else:
+        solver = default_solver
+
+    # Checks whether user wants to override URL domain or path
+    if args.url_domain is not None:
+        solver.domain = args.url_domain
+
+    log_logger = Logger(args.log_filename)
+    log_logger.print_also_on_stdin = True
+#
+#
+    return
+#
+
+
+
+
+
+
 if __name__ == "__main__":
+    print("TEST_CLI")
     test_cli()

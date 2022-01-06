@@ -32,9 +32,20 @@
 #ifndef _SYSTEM_SPI_H
 #define _SYSTEM_SPI_H
 
-#include "stm32l4xx_ll_bus.h"
-#include "stm32l4xx_ll_gpio.h"
-#include "stm32l4xx_ll_spi.h"
+
+#include "RE01_256KB.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+#include "r_spi_cmsis_api.h"
+#include "system.h"
+#include "system_gpio.h"
+
+//#include "stm32l4xx_ll_bus.h"
+//#include "stm32l4xx_ll_gpio.h"
+//#include "stm32l4xx_ll_spi.h"
 
 #include <stdint.h>
 
@@ -42,12 +53,17 @@
 extern "C" {
 #endif
 
-void system_spi_init( void );
 
-void system_spi_write( SPI_TypeDef* spi, const uint8_t* buffer, uint16_t length );
-void system_spi_read( SPI_TypeDef* spi, uint8_t* buffer, uint16_t length );
-void system_spi_write_read( SPI_TypeDef* spi, const uint8_t* cbuffer, uint8_t* rbuffer, uint16_t length );
-void system_spi_read_with_dummy_byte( SPI_TypeDef* spi, uint8_t* buffer, uint16_t length, uint8_t dummy_byte );
+
+void system_spi_init( ARM_DRIVER_SPI* spi) __attribute__ ((section(".ramfunc")));
+void system_spi_stop( ARM_DRIVER_SPI* spi) __attribute__ ((section(".ramfunc")));
+
+void system_spi_write( ARM_DRIVER_SPI* spi, const uint8_t* buffer, uint16_t length )  __attribute__ ((section(".ramfunc")));
+void system_spi_read( ARM_DRIVER_SPI* spi, uint8_t* buffer, uint16_t length )  __attribute__ ((section(".ramfunc")));
+void system_spi_write_read( ARM_DRIVER_SPI* spi, const uint8_t* cbuffer, uint8_t* rbuffer, uint16_t length )  __attribute__ ((section(".ramfunc")));
+//void system_spi_write( SPI_TypeDef* spi, const uint8_t* buffer, uint16_t length );
+//void system_spi_read( SPI_TypeDef* spi, uint8_t* buffer, uint16_t length );
+//void system_spi_write_read( SPI_TypeDef* spi, const uint8_t* cbuffer, uint8_t* rbuffer, uint16_t length );
 
 #ifdef __cplusplus
 }

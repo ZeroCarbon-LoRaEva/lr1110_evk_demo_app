@@ -85,11 +85,15 @@ class SerialHanlerEmbeddedNotSetException(SerialHandlerException):
 
 
 class SerialHandler:
-    DISCOVER_PORT_REGEXP = "(STM.*)|(374B)"
-    SERIAL_BAUDRATE = 921600
+    DISCOVER_PORT_REGEXP = "(.*COM7.*)"
+#    DISCOVER_PORT_REGEXP = "(STM.*)|(374B)"
+    SERIAL_BAUDRATE = 115200
+#    SERIAL_BAUDRATE = 230400
+#    SERIAL_BAUDRATE = 460800
+#    SERIAL_BAUDRATE = 921600
     SERIAL_READ_TIMEOUT_S = 1
     TEST_HOST_MESSAGE = b"!TEST_HOST"
-    TEST_HOST_FIELD_TEST_RESPONSE = b"fieldglog\x00"
+    TEST_HOST_FIELD_TEST_RESPONSE = b"fieldglog\x0D\x00"
 
     def __init__(self):
         self.serial_port = None
@@ -131,11 +135,14 @@ class SerialHandler:
     def send(self, data: bytes):
         if not self.is_embedded_set_to_field_test.is_set():
             raise SerialHanlerEmbeddedNotSetException()
+        print("STM32_send_data:",data,"GG")
         self.serial_port.write(data)
         send_time = datetime.utcnow()
         return send_time
 
     def send_swith_embedded_to_field_test_mode_response(self):
+        print("Switch to field_test_mode")
+        print("STM32_send_TEST_HOST_FIELD_TEST_RESPONSE:",SerialHandler.TEST_HOST_FIELD_TEST_RESPONSE)
         self.serial_port.write(SerialHandler.TEST_HOST_FIELD_TEST_RESPONSE)
 
     def read_command(self):

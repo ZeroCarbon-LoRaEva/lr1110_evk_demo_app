@@ -33,14 +33,23 @@
 #define __SYSTEM_LPTIM_H__
 
 #include "stdint.h"
-#include "stm32l4xx_ll_lptim.h"
+//#include "stm32l4xx_ll_lptim.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void system_lptim_init( );
-void system_lptim_set_and_run( uint32_t ticks );
+void system_lptim_init() __attribute__ ((section(".ramfunc"))) ;
+//void system_lptim_set_and_run( uint32_t ticks );
+void system_lptim_set_and_run( uint32_t ticks )  __attribute__ ((section(".ramfunc")));
+void system_lptim_stop(void)  __attribute__ ((section(".ramfunc")));
+uint32_t system_lptim_get(void)  __attribute__ ((section(".ramfunc")));
+void system_int_timer_init(void) __attribute__ ((section(".ramfunc")));
+
+uint16_t system_int_timer_get(void)  __attribute__ ((section(".ramfunc")));
+void system_int_timer_set_and_run( uint16_t ticks )  __attribute__ ((section(".ramfunc")));
+void system_int_timer_stop(void)  __attribute__ ((section(".ramfunc")));
+
 
 #ifdef __cplusplus
 }

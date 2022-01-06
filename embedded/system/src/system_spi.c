@@ -29,108 +29,153 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config_mode.h"
+#include "RE01_256KB.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "system.h"
+#include "system_time.h"
 #include "system_spi.h"
+#include "r_lpm_api.h"
+#include "r_spi_cmsis_api.h"
 
-void system_spi_init( void )
+//static void callback(uint32_t event);
+
+extern ARM_DRIVER_SPI Driver_SPI0;
+extern ARM_DRIVER_SPI Driver_SPI1;
+
+void spi0_callback(uint32_t event)  __attribute__ ((section(".ramfunc")));
+void spi1_callback(uint32_t event)  __attribute__ ((section(".ramfunc")));
+
+static uint8_t spi_eventWait;
+
+
+
+static int err;
+
+//extern ARM_DRIVER_SPI Driver_SPI0;
+
+
+void system_spi_init( ARM_DRIVER_SPI* spi)
 {
-    LL_SPI_InitTypeDef  SPI_InitStruct  = { 0 };
-    LL_GPIO_InitTypeDef GPIO_InitStruct = { 0 };
+	GLOBAL_INT_DISABLE( );
+	if (spi == &Driver_SPI0) {
+		  err = spi->Initialize(spi0_callback); 
+	} else if (spi == &Driver_SPI1){
+		  err = spi->Initialize(spi1_callback);
+	} else {
+		err=1;
+	}
 
-    /* Peripheral clock enable */
-    LL_APB2_GRP1_EnableClock( LL_APB2_GRP1_PERIPH_SPI1 );
-    LL_AHB2_GRP1_EnableClock( LL_AHB2_GRP1_PERIPH_GPIOA );
+  APP_ERR_HANDLER(err);
 
-    /** SPI1 GPIO Configuration
-    PA5   ------> SPI1_SCK
-    PA6   ------> SPI1_MISO
-    PA7   ------> SPI1_MOSI
-    */
-    GPIO_InitStruct.Pin        = LL_GPIO_PIN_5 | LL_GPIO_PIN_6 | LL_GPIO_PIN_7;
-    GPIO_InitStruct.Mode       = LL_GPIO_MODE_ALTERNATE;
-    GPIO_InitStruct.Speed      = LL_GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-    GPIO_InitStruct.Pull       = LL_GPIO_PULL_NO;
-    GPIO_InitStruct.Alternate  = LL_GPIO_AF_5;
-    LL_GPIO_Init( GPIOA, &GPIO_InitStruct );
+  err = spi->PowerControl(ARM_POWER_FULL); 
+  APP_ERR_HANDLER(err);
 
-    SPI_InitStruct.BaudRate          = LL_SPI_BAUDRATEPRESCALER_DIV4;
-    SPI_InitStruct.TransferDirection = LL_SPI_FULL_DUPLEX;
-    SPI_InitStruct.Mode              = LL_SPI_MODE_MASTER;
-    SPI_InitStruct.DataWidth         = LL_SPI_DATAWIDTH_8BIT;
-    SPI_InitStruct.ClockPolarity     = LL_SPI_POLARITY_LOW;
-    SPI_InitStruct.ClockPhase        = LL_SPI_PHASE_1EDGE;
-    SPI_InitStruct.NSS               = LL_SPI_NSS_SOFT;
-    SPI_InitStruct.BitOrder          = LL_SPI_MSB_FIRST;
-    SPI_InitStruct.CRCCalculation    = LL_SPI_CRCCALCULATION_DISABLE;
-    SPI_InitStruct.CRCPoly           = 7;
-    LL_SPI_Init( SPI1, &SPI_InitStruct );
+#if (TRACKER_RX_TX_UPDATE == 2)
+  err = spi->Control(ARM_SPI_MODE_MASTER  | 
+                                       ARM_SPI_DATA_BITS(8) | 
+                                         ARM_SPI_SS_MASTER_UNUSED | 
+                                           ARM_SPI_CPOL0_CPHA0  | 
+                                           ARM_SPI_MSB_LSB,1000000);//  MSB first 1Mbps
+#elif (TRACKER_RX_TX_UPDATE == 1 || TRACKER_RX_TX_UPDATE == 3)
+  err = spi->Control(ARM_SPI_MODE_MASTER  |
+                                       ARM_SPI_DATA_BITS(8) |
+                                         ARM_SPI_SS_MASTER_UNUSED |
+                                           ARM_SPI_CPOL0_CPHA0  |
+                                           ARM_SPI_MSB_LSB,8000000);  // MSB first 8Mbps
+#endif
 
-    LL_SPI_SetStandard( SPI1, LL_SPI_PROTOCOL_MOTOROLA );
-    LL_SPI_DisableNSSPulseMgt( SPI1 );
-
-    LL_SPI_Enable( SPI1 );
-    while( LL_SPI_IsEnabled( SPI1 ) == 0 )
-    {
-    };
-
-    LL_SPI_SetRxFIFOThreshold( SPI1, LL_SPI_RX_FIFO_TH_QUARTER );
+  APP_ERR_HANDLER(err);
+  
+  GLOBAL_INT_RESTORE();
 }
 
-void system_spi_write( SPI_TypeDef* spi, const uint8_t* buffer, uint16_t length )
+void system_spi_stop( ARM_DRIVER_SPI* spi)
 {
-    for( uint16_t i = 0; i < length; i++ )
-    {
-        while( LL_SPI_IsActiveFlag_TXE( spi ) == 0 )
-        {
-        };
-
-        LL_SPI_TransmitData8( spi, buffer[i] );
-
-        while( LL_SPI_IsActiveFlag_RXNE( spi ) == 0 )
-        {
-        };
-
-        LL_SPI_ReceiveData8( spi );
-    }
+	if (spi == &Driver_SPI0) {
+        err = spi->Uninitialize();
+	    R_LPM_ModuleStop(LPM_MSTP_SPI0);
+	} else if (spi == &Driver_SPI1){
+        err = spi->Uninitialize();
+	    R_LPM_ModuleStop(LPM_MSTP_SPI1);
+	} else {
+		err=1;
+	}
+    APP_ERR_HANDLER(err);
 }
 
-void system_spi_read( SPI_TypeDef* spi, uint8_t* buffer, uint16_t length )
+void system_spi_write_read( ARM_DRIVER_SPI* spi, const uint8_t* cbuffer, uint8_t* rbuffer, uint16_t length )
+//uint16_t hal_spi_in_out( const uint32_t id, const uint16_t outData )
 {
-    system_spi_write_read( spi, buffer, buffer, length );
+  int err;
+//  uint8_t rxData = 0;
+  uint32_t timeout = 0x020000;
+  
+  if (length ==0) {return;}
+  spi_eventWait = 0; 
+  
+  err = spi->Transfer(&cbuffer, &rbuffer, length);
+  APP_ERR_HANDLER(err);
+  
+  while((spi_eventWait == 0) && (--timeout != 0));
+  
+  APP_ERR_HANDLER(spi_eventWait != ARM_SPI_EVENT_TRANSFER_COMPLETE);
+  
+//  system_time_wait_ms( 10 );
+  return;
 }
 
-void system_spi_write_read( SPI_TypeDef* spi, const uint8_t* cbuffer, uint8_t* rbuffer, uint16_t length )
+void system_spi_write( ARM_DRIVER_SPI* spi, const uint8_t* buffer, uint16_t length )
+//uint16_t hal_spi_in_out( const uint32_t id, const uint16_t outData )
 {
-    for( uint16_t i = 0; i < length; i++ )
-    {
-        while( LL_SPI_IsActiveFlag_TXE( spi ) == 0 )
-        {
-        };
-
-        LL_SPI_TransmitData8( spi, cbuffer[i] );
-
-        while( LL_SPI_IsActiveFlag_RXNE( spi ) == 0 )
-        {
-        };
-
-        rbuffer[i] = LL_SPI_ReceiveData8( spi );
-    }
+  int err;
+//  uint8_t rxData = 0;
+  uint32_t timeout = 0x02000000;
+  
+  if (length ==0) {return;}
+  spi_eventWait = 0; 
+  
+  err = spi->Send(buffer, length);
+  APP_ERR_HANDLER(err);
+  
+  while((spi_eventWait == 0) && (--timeout != 0));
+  
+  APP_ERR_HANDLER(spi_eventWait != ARM_SPI_EVENT_TRANSFER_COMPLETE);
+//  system_time_wait_ms( 10 );
+  return;
 }
 
-void system_spi_read_with_dummy_byte( SPI_TypeDef* spi, uint8_t* buffer, uint16_t length, uint8_t dummy_byte )
+void system_spi_read( ARM_DRIVER_SPI* spi, uint8_t* buffer, uint16_t length )
+//uint16_t hal_spi_in_out( const uint32_t id, const uint16_t outData )
 {
-    for( uint16_t i = 0; i < length; i++ )
-    {
-        while( LL_SPI_IsActiveFlag_TXE( spi ) == 0 )
-        {
-        };
-
-        LL_SPI_TransmitData8( spi, dummy_byte );
-
-        while( LL_SPI_IsActiveFlag_RXNE( spi ) == 0 )
-        {
-        };
-
-        buffer[i] = LL_SPI_ReceiveData8( spi );
-    }
+  int err;
+//  uint8_t rxData = 0;
+  uint32_t timeout = 0x02000000;
+  
+  if (length ==0) {return;}
+  spi_eventWait = 0; 
+  
+  err = spi->Receive(buffer, length);
+  APP_ERR_HANDLER(err);
+  
+  while((spi_eventWait == 0) && (--timeout != 0));
+  
+  APP_ERR_HANDLER(spi_eventWait != ARM_SPI_EVENT_TRANSFER_COMPLETE);
+  
+//  system_time_wait_ms( 10 );
+  return;
 }
+
+void spi0_callback(uint32_t event)
+{
+  spi_eventWait  = event;
+}
+
+void spi1_callback(uint32_t event)
+{
+  spi_eventWait  = event;
+}
+
+
+

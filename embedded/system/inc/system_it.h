@@ -36,23 +36,31 @@
 extern "C" {
 #endif
 
-#include "stm32l4xx_ll_exti.h"
+//#include "stm32l4xx_ll_exti.h"
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 
-void NMI_Handler( void );
-void HardFault_Handler( void );
-void MemManage_Handler( void );
-void BusFault_Handler( void );
-void UsageFault_Handler( void );
-void SVC_Handler( void );
-void DebugMon_Handler( void );
-void PendSV_Handler( void );
-void SysTick_Handler( void );
-void EXTI4_IRQHandler( void );
+void NMI_Handler( void )  __attribute__ ((section(".ramfunc")));
+void HardFault_Handler( void )  __attribute__ ((section(".ramfunc")));
+void MemManage_Handler( void )  __attribute__ ((section(".ramfunc")));
+void BusFault_Handler( void )  __attribute__ ((section(".ramfunc")));
+void UsageFault_Handler( void )  __attribute__ ((section(".ramfunc")));
+void SVC_Handler( void )  __attribute__ ((section(".ramfunc")));
+void DebugMon_Handler( void )  __attribute__ ((section(".ramfunc")));
+void PendSV_Handler( void )  __attribute__ ((section(".ramfunc")));
+void SysTick_Handler( void )  __attribute__ ((section(".ramfunc")));
+void EXTI4_IRQHandler( void )  __attribute__ ((section(".ramfunc")));
+void EXTI15_10_IRQHandler( void ) __attribute__ ((section(".ramfunc")));
+void DMA1_Channel7_IRQHandler( void ) __attribute__ ((section(".ramfunc")));
+void DMA1_Channel6_IRQHandler( void ) __attribute__ ((section(".ramfunc")));
+void LPTIM1_IRQHandler( void ) __attribute__ ((section(".ramfunc")));
+void IRQ3_IRQHandler( void ) __attribute__ ((section(".ramfunc")));
+void IRQ4_IRQHandler( void ) __attribute__ ((section(".ramfunc")));
+void IRQ7_IRQHandler( void ) __attribute__ ((section(".ramfunc")));
+void IRQ9_IRQHandler( void ) __attribute__ ((section(".ramfunc")));
 
 #ifdef __cplusplus
 }

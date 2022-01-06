@@ -6,7 +6,6 @@ from .RequestSender import (
 )
 from .GeoLocServiceClientBase import (
     GeoLocServiceClientGnss,
-    GeoLocServiceClientMultiFrameGnss,
     GeoLocServiceClientWifi,
     GeoLocServiceBadResponseStatus,
     GeoLocServiceTimeoutException,
@@ -18,9 +17,4 @@ from .ResponseBase import (
     ResponseBase,
     ResponseBaseException,
 )
-from .RequestBase import RequestGnssGls, RequestWifiGls, RequestGnssMultiFrameGls
-from .GnssSolvingStrategy import (
-    GnssSingleSolvingStrategy,
-    GnssMultiFrameSlidingStrategy,
-    GnssMultiFrameGroupingStrategy,
-)
+from .RequestBase import RequestGnssGls, RequestWifiGls

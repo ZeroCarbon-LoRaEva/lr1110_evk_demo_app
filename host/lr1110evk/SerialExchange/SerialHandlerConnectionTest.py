@@ -32,7 +32,7 @@ from .SerialHandler import SerialHandler
 
 
 class SerialHandlerConnectionTest(SerialHandler):
-    TEST_HOST_CONNECTION_TEST_RESPONSE = b"testdglog\x00"
+    TEST_HOST_CONNECTION_TEST_RESPONSE = b"testdglog\x0D\x00"
     EXPECTED_RESPONSE_FROM_EMBEDDED = b"It works !"
 
     def __init__(self):

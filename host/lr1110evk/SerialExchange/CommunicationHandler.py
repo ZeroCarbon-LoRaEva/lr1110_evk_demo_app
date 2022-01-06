@@ -26,6 +26,8 @@ Define serial communication handler class
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+from time import sleep
+
 
 from queue import Empty
 from .Responses import (
@@ -117,12 +119,16 @@ class CommunicationHandler:
 
     def handle_exchange(self, command):
         command = self.send_one_command(command)
+        sleep(0.1)
         response = self.wait_and_handle_response()
+        sleep(0.1)
         return command, response
 
     def send_one_command(self, command):
         command_bytes = command.convert_to_bytes()
-        command.sent_time = self.serial_handler.send(command_bytes)
+##        print("RE01_send_command",command_bytes, "XX")
+#        command.sent_time = self.serial_handler.send(command_bytes)
+        command.sent_time = self.serial_handler.write(command_bytes.hex().encode("ascii") + b"\x0D\x0A")
         return command
 
     def has_received_event(self):
@@ -139,14 +145,21 @@ class CommunicationHandler:
 
     def get_response_from_fifo_and_filter_out_log(self, timeout):
         while True:
-            if not self.serial_handler.read_thread.is_alive():
-                raise CommunicationHandlerSerialNotListeningException()
-            response_raw = self.serial_handler.response_fifo.get(timeout=timeout)
-            response = self.handle_response(response_raw)
-            if response.get_response_code() == ResponseLog.get_response_code():
+#            if not self.serial_handler.read_thread.is_alive():
+#                raise CommunicationHandlerSerialNotListeningException()
+#            response_raw = self.serial_handler.response_fifo.get(timeout=timeout)
+#            response = self.handle_response(response_raw)
+#            response = self.serial_handler.read(2)
+#            response = self.serial_handler.read(2)
+            response = self.serial_handler.readline().decode("ascii")
+            print("RE01 Response ",response,"ZZ")
+#            if response.get_response_code() == ResponseLog.get_response_code():
+#            if response != ResponseLog.get_response_code():
+#            if response[0:6] != b"ACK_OK":
+            if not "ACK_OK" in response:
                 self.log(
-                    "[EMBEDDED DEBUG]: {}".format(str(response.message)),
-                    response.reception_time,
+#                    "[EMBEDDED DEBUG]: {}".format(str(response.message)),
+                    "[EMBEDDED DEBUG]: {}",response,
                 )
             else:
                 return response

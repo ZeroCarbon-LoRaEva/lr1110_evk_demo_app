@@ -30,18 +30,33 @@
  */
 
 /* Includes ------------------------------------------------------------------*/
+#include "RE01_256KB.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
 #include "system_it.h"
-#include "stm32l4xx_ll_dma.h"
+//#include "stm32l4xx_ll_dma.h"
 #include "configuration.h"
 #include <stdbool.h>
 #include "system_time.h"
 #include "system_lptim.h"
-#include "system_uart.h"
+//#include "system_uart_fifo.h"
+#include "system_uart_fifo_low_level.h"
 
-extern void SupervisorInterruptHandlerGui( bool is_down );
-extern void SupervisorInterruptHandlerDemo( void );
-extern void TimerHasElapsed( void );
-extern void lv_tick_inc( uint32_t );
+//extern void SupervisorInterruptHandlerGui( bool is_down );
+//extern void SupervisorInterruptHandlerDemo( void );
+//extern void TimerHasElapsed( void );
+//extern void lv_tick_inc( uint32_t );
+
+
+int8_t irq3_event_flag;
+int8_t irq4_event_flag;
+int8_t accel_event_flag;
+int8_t irq7_event_flag;
+int8_t irq9_event_flag;
+
 
 /**
  * @brief  This function handles NMI exception.
@@ -128,10 +143,17 @@ void PendSV_Handler( void ) {}
  * @param  None
  * @retval None
  */
+/*
+  * @note   In the default implementation the System Timer (Systick) is used as source of time base.
+  *         The Systick configuration is based on MSI clock, as MSI is the clock
+  *         used after a system Reset and the NVIC configuration is set to Priority group 4.
+  *         Once done, time base tick starts incrementing: the tick variable counter is incremented
+  *         each 1ms in the SysTick_Handler() interrupt handler.
+*/
 void SysTick_Handler( void )
 {
     system_time_IncreaseTicker( );
-    lv_tick_inc( 1 );
+//    lv_tick_inc( 1 );
 }
 
 /******************************************************************************/
@@ -148,8 +170,6 @@ void SysTick_Handler( void )
  */
 void EXTI4_IRQHandler( void )
 {
-    LL_EXTI_ClearFlag_0_31( LL_EXTI_LINE_4 );
-    SupervisorInterruptHandlerDemo( );
 }
 
 /**
@@ -159,14 +179,6 @@ void EXTI4_IRQHandler( void )
  */
 void EXTI15_10_IRQHandler( void )
 {
-    if( LL_EXTI_IsActiveFlag_0_31( LL_EXTI_LINE_10 ) )
-    {
-        bool is_down = false;
-
-        LL_EXTI_ClearFlag_0_31( LL_EXTI_LINE_10 );
-        is_down = !LL_GPIO_IsInputPinSet( TOUCH_IRQ_PORT, TOUCH_IRQ_PIN );
-        SupervisorInterruptHandlerGui( is_down );
-    }
 }
 
 /**
@@ -176,17 +188,6 @@ void EXTI15_10_IRQHandler( void )
  */
 void DMA1_Channel7_IRQHandler( void )
 {
-    if( LL_DMA_IsActiveFlag_TC7( DMA1 ) )
-    {
-        LL_DMA_ClearFlag_GI7( DMA1 );
-        /* Call function Transmission complete Callback */
-        system_uart_dma_tx_complete_callback( );
-    }
-    else if( LL_DMA_IsActiveFlag_TE7( DMA1 ) )
-    {
-        /* Call Error function */
-        system_uart_dma_txrx_error( );
-    }
 }
 
 /**
@@ -196,17 +197,6 @@ void DMA1_Channel7_IRQHandler( void )
  */
 void DMA1_Channel6_IRQHandler( void )
 {
-    if( LL_DMA_IsActiveFlag_TC6( DMA1 ) )
-    {
-        LL_DMA_ClearFlag_GI6( DMA1 );
-        /* Call function Reception complete Callback */
-        system_uart_dma_rx_complete_callback( );
-    }
-    else if( LL_DMA_IsActiveFlag_TE6( DMA1 ) )
-    {
-        /* Call Error function */
-        system_uart_dma_txrx_error( );
-    }
 }
 
 /**
@@ -214,12 +204,38 @@ void DMA1_Channel6_IRQHandler( void )
  */
 void LPTIM1_IRQHandler( void )
 {
-    /* Check whether Autoreload match interrupt is pending */
-    if( LL_LPTIM_IsActiveFlag_ARRM( LPTIM1 ) == 1 )
-    {
-        /* Clear the Autoreload match interrupt flag */
-        LL_LPTIM_ClearFLAG_ARRM( LPTIM1 );
+}
 
-        TimerHasElapsed( );
-    }
+void IRQ3_IRQHandler( void )
+{
+#if (BOARD_TYPE_EVK_TOKYOCOM == 2)
+	accel_event_flag = true;
+#else
+	irq3_event_flag = true;
+#endif
+}
+
+//int8_t irq4_event_flag;
+void IRQ4_IRQHandler( void )
+{
+	irq4_event_flag = true;
+}
+
+//int8_t accel_event_flag;
+void IRQ7_IRQHandler( void )
+{
+#if (BOARD_TYPE_EVK_TOKYOCOM == 1 && BOARD_TYPE1_TX_VERSION == 1)
+	accel_event_flag = true;
+#else
+	irq7_event_flag = true;
+#endif
+}
+//int8_t irq9_event_flag;
+void IRQ9_IRQHandler( void )
+{
+#if (BOARD_TYPE_EVK_TOKYOCOM == 1 && BOARD_TYPE1_TX_VERSION == 2)
+	accel_event_flag = true;
+#else
+	irq9_event_flag = true;
+#endif
 }

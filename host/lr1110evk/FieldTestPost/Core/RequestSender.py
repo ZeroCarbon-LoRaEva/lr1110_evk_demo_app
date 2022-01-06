@@ -27,13 +27,11 @@ Define Request sender class
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-from lr1110evk.BaseTypes import (
-    ScannedMacAddress,
-    ScannedGnss,
-    GroupingMultiFrameNotEnoughNavException,
-)
+from lr1110evk.BaseTypes import ScannedMacAddress, ScannedGnss
 from .FileReader import FileReader
-from .RequestBase import RequestWifiGls, RequestGnssGls, RequestGnssMultiFrameGls
+from .RequestBase import RequestWifiGls, RequestGnssGls
+from .ResponseBase import ResponseBase
+from .ExternalCoordinate import ExternalCoordinate
 from .GeoLocServiceClientBase import GeoLocServiceBadResponseStatus
 
 
@@ -43,6 +41,18 @@ class RequestSenderException(Exception):
 
 class MultipleScanTypesException(RequestSenderException):
     pass
+
+
+class NoScanException(RequestSenderException):
+    pass
+
+
+class UnknownExternalId(RequestSenderException):
+    def __init__(self, unknown_id):
+        self.unknown_id = unknown_id
+
+    def __str__(self):
+        return "Unknown id '{}' while constructing request".format(self.unknown_id)
 
 
 class TooManyNavMessagesException(RequestSenderException):
@@ -71,11 +81,15 @@ class SolverContactException(RequestSenderException):
 class RequestSender:
     def __init__(self, configuration):
         self.configuration = configuration
+        self.TYPE_REQUEST_MAPPER = {
+            ScannedGnss: self.build_gnss_requests,
+            ScannedMacAddress: self.build_wifi_requests,
+        }
         self.GEOLOC_SERVICE_MAPPER = {
             RequestWifiGls: self.configuration.wifi_server,
             RequestGnssGls: self.configuration.gnss_server,
-            RequestGnssMultiFrameGls: self.configuration.gnss_multiframe_server,
         }
+        self.device_eui = None
 
     def build_wifi_requests(self, mac_addresses):
         wifi_data = [
@@ -85,16 +99,19 @@ class RequestSender:
         request.macs = wifi_data
         return request
 
-    def build_gnss_requests_from_strategy(self):
-        return self.configuration.gnss_solver_strategy.build_request()
-
-    def build_gnss_multiframe_requests(self, multi_frame_container):
-        nav_messages = [
-            gnss_data.nav_message for gnss_data in multi_frame_container.get_navs()
-        ]
-        if not nav_messages:
+    def build_gnss_requests(self, gnss_scan):
+        gnss_data = [data for data in gnss_scan if isinstance(data, ScannedGnss)]
+        if len(gnss_data) > 1:
+            raise TooManyNavMessagesException(gnss_data)
+        if not gnss_data:
             raise NoNavMessageException()
-        request = RequestGnssMultiFrameGls(nav_messages=nav_messages)
+        gnss_data = gnss_data[0]
+        utc_time = gnss_data.instant_scan
+        request = RequestGnssGls(
+            payload=gnss_data.nav_message,
+            timestamp=utc_time,
+            aiding_coordinate=self.configuration.approximate_gnss_server_localization,
+        )
         return request
 
     def get_geo_loc_service_for_request(self, request):
@@ -147,25 +164,11 @@ class RequestSender:
                     yield group_result_lines, None
                     continue
 
-            if scan_info_type is ScannedMacAddress:
-                if self.is_wifi_deactivated():
+            if self.is_wifi_deactivated():
+                if scan_info_type is ScannedMacAddress:
                     continue
-                else:
-                    request = self.build_wifi_requests(scan_info)
-                yield group_result_lines, request
-            elif scan_info_type is ScannedGnss:
-                self.configuration.gnss_solver_strategy.get_container().flush()
-                for result_line in group_result_lines:
-                    self.configuration.gnss_solver_strategy.get_container().push_nav_message(
-                        result_line.scan_info
-                    )
-                    try:
-                        request = self.build_gnss_requests_from_strategy()
-                    except GroupingMultiFrameNotEnoughNavException as excp:
-                        request = None
-                    yield [result_line], request
-            else:
-                continue
+            request = self.TYPE_REQUEST_MAPPER[scan_info_type](scan_info)
+            yield group_result_lines, request
 
     def is_wifi_deactivated(self):
         return self.configuration.deactivate_wifi_requests

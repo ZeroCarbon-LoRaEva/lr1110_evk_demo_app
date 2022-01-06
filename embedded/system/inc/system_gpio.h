@@ -65,13 +65,18 @@ typedef enum
 extern "C" {
 #endif
 
-void                    system_gpio_init( void );
-void                    system_gpio_set_pin_state( gpio_t gpio, const system_gpio_pin_state_t state );
-system_gpio_pin_state_t system_gpio_get_pin_state( gpio_t gpio );
-void system_gpio_init_direction_state( const gpio_t gpio, const system_gpio_pin_direction_t direction,
-                                       const system_gpio_pin_state_t state );
-void system_gpio_init_irq( const gpio_t gpio, const system_gpio_interrupt_t interrupt );
-void system_gpio_wait_for_state( gpio_t io, uint8_t state );
+void system_gpio_init( void );
+void system_gpio_init_direction_state( const gpio_t gpio, const system_gpio_pin_direction_t direction, const system_gpio_pin_state_t state );
+void system_gpio_init_input(uint16_t port, uint16_t pin, system_gpio_interrupt_t irq_mode );
+void system_gpio_init_output( uint16_t port, uint16_t pin, uint8_t value );
+
+void system_gpio_set_pin_state( gpio_t gpio, const system_gpio_pin_state_t state )  __attribute__ ((section(".ramfunc")));
+system_gpio_pin_state_t system_gpio_get_pin_state( gpio_t gpio )  __attribute__ ((section(".ramfunc")));
+void system_gpio_wait_for_state( gpio_t io, uint8_t state )  __attribute__ ((section(".ramfunc")));
+
+void system_restore_PORT(void);
+void system_uninit_PORT(void);
+
 
 #ifdef __cplusplus
 }

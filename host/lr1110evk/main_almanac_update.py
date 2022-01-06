@@ -82,10 +82,7 @@ class ServerSolver:
 
     @classmethod
     def build_default_server_solver(cls):
-        return cls(
-            domain=cls.DEFAULT_DOMAIN,
-            path=cls.DEFAULT_PATH,
-        )
+        return cls(domain=cls.DEFAULT_DOMAIN, path=cls.DEFAULT_PATH,)
 
     @classmethod
     def get_header_content_type_token(cls):
@@ -121,7 +118,9 @@ class DasServerSolver(ServerSolver):
 
 def entry_point_update_almanac():
     default_device = "/dev/ttyACM0"
-    default_baud = 921600
+#    default_baud = 460800
+    default_baud = 115200
+#    default_baud = 921600
     default_log_filename = "log.log"
     default_solver = DasServerSolver.build_default_server_solver()
 
@@ -142,14 +141,10 @@ def entry_point_update_almanac():
         description=description, formatter_class=RawDescriptionHelpFormatter
     )
     parser.add_argument(
-        "token",
-        help="Authentication token to the selected server",
+        "token", help="Authentication token to the selected server",
     )
     parser.add_argument(
-        "-g",
-        "--gls",
-        help="Use GLS server instead of DAS",
-        action="store_true",
+        "-g", "--gls", help="Use GLS server instead of DAS", action="store_true",
     )
     parser.add_argument(
         "-u",
