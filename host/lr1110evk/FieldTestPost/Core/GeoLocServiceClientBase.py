@@ -163,15 +163,15 @@ class GeoLocServiceClientBase:
 
 
 class GeoLocServiceClientGnss(GeoLocServiceClientBase):
-    DEFAULT_BASE_URL = "https://gls.loracloud.com"
+    DEFAULT_BASE_URL = "https://mgs.loracloud.com"
     DEFAULT_PATH_URL = "solve/gnss_lr1110_singleframe"
     DEFAULT_PORT = 443
-    DEFAULT_COMPATIBLE_VERSION_URL = "v3"
+    DEFAULT_COMPATIBLE_VERSION_URL = "v1"
 
     @staticmethod
     def build_header_from_authentication_token(authentication_token):
         return {
-            "Ocp-Apim-Subscription-Key": authentication_token,
+            "Authorization": authentication_token,
             "Content-Type": "application/json",
         }
 
@@ -237,14 +237,14 @@ class GeoLocServiceClientGnss(GeoLocServiceClientBase):
 
 class GeoLocServiceClientWifi(GeoLocServiceClientBase):
     DEFAULT_PATH_URL = "loraWifi"
-    DEFAULT_COMPATIBLE_VERSION_URL = "api/v2"
-    DEFAULT_BASE_URL = "https://gls.loracloud.com"
+    DEFAULT_COMPATIBLE_VERSION_URL = "api/v1/solve"
+    DEFAULT_BASE_URL = "https://mgs.loracloud.com"
     DEFAULT_PORT = 443
 
     @staticmethod
     def build_header_from_authentication_token(authentication_token):
         return {
-            "Ocp-Apim-Subscription-Key": authentication_token,
+            "Authorization": authentication_token,
             "Content-Type": "application/json",
         }
 

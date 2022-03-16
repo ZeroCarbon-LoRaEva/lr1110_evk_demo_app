@@ -67,7 +67,8 @@ gLati     = 0.0 # Latitude
 gLong     = 0.0 # Longitude
 gEdgerssi = 0.0 # Edge RSSI
 gGwrssi   = 0.0 # GW   RSSI
-gWifi     = 0.0 # Wifi stations
+gWifi     = 0   # Wifi stations
+gGnss     = 0   # Gnss stations
 
 class LocalizationResult:
     def __init__(self, coordinate, accuracy, geo_coding):
@@ -449,6 +450,7 @@ class VcpReader:
         global gEdgerssi # Edge RSSI
         global gGwrssi   # GW   RSSI
         global gWifi     # Wifi stations
+        global gGnss     # Gnss stations
 
         dt_now = datetime.now()
 
@@ -474,19 +476,17 @@ class VcpReader:
             comment = data[1:].strip()
             self.handle_comment(comment)
 
-            gTemp = float(re.sub(r"\D", "", data[34:38])) / 100
-            if data[33] == "-":
+            gTemp = float(re.sub(r"\D", "", data[27:31])) / 100
+            if data[26] == "-":
                 gTemp = gTemp * -1
 
-            gHumi = float(re.sub(r"\D", "", data[49:53])) / 100
+            gHumi = float(re.sub(r"\D", "", data[38:42])) / 100
 
-            if data[77] == " ":
-                gEdgerssi = float(re.sub(r"\D", "", data[75:77]))
-            else:
-                gEdgerssi = float(re.sub(r"\D", "", data[75:78]))
-
-            if data[74] == "-":
+            gEdgerssi = float(re.sub(r"\D", "", data[50:53]))
+            if data[49] == "-":
                 gEdgerssi = gEdgerssi * -1
+
+            gGnss = int(re.sub(r"\D", "", data[62:66]))
 
             print("DATE : "    ,dt_now   )
             print("gTemp    = ",gTemp    )
@@ -496,6 +496,7 @@ class VcpReader:
             print("gEdgerssi= ",gEdgerssi)
             print("gGwrssi  = ",gGwrssi  )
             print("gWifi    = ",gWifi    )
+            print("gGnss    = ",gGnss    )
 
             #初期化
             gTemp     = 0.0 # Temperature
@@ -504,10 +505,11 @@ class VcpReader:
             gLong     = 0.0 # Longitude
             gEdgerssi = 0.0 # Edge RSSI
             gGwrssi   = 0.0 # GW   RSSI
-            gWifi     = 0.0 # Wifi stations
+            gWifi     = 0   # Wifi stations
+            gGnss     = 0   # Gnss stations
 
         elif data.startswith("#Received # of mac address "):
-            gWifi = re.sub(r"\D", "", data[27:28])
+            gWifi = int(re.sub(r"\D", "", data[27:29]))
 
         elif data.startswith("#"):
             comment = data[1:].strip()
@@ -536,10 +538,10 @@ class VcpReader:
         alm = entry_point_update_almanac
         while (1):
 
-#           in_command = input("Command (1 .. Start without Almanac, 2 .. Download Almanac, 3 .. End Program) :") 
+            in_command = input("Command (1 .. Start without Almanac, 2 .. Download Almanac, 3 .. End Program) :") 
 
-            in_command = "1"    # コマンド固定
-            print('1 .. Start without Almanac') 
+#           in_command = "1"    # コマンド固定
+#           print('1 .. Start without Almanac') 
 
             if in_command == "1" or  in_command == "2":
                 if in_command == "2":

@@ -195,10 +195,10 @@ def entry_point_demo():
         "glsAuthenticationToken",
         help="HTTP header token to authenticate the Wi-Fi requests on LoRa Cloud Geolocation (GLS) server",
     )
-    parser.add_argument(
-        "token",
-        help="HTTP header token to authenticate the Wi-Fi requests on (DAS) server",
-    )
+#   parser.add_argument(
+#       "token",
+#       help="HTTP header token to authenticate the Wi-Fi requests on (DAS) server",
+#   )
     parser.add_argument(
         "-s",
         "--wifi-server-base-url",
