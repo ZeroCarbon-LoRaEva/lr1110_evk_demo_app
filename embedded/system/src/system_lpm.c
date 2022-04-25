@@ -25,7 +25,8 @@ void system_lpm_setup_rtc(void)
 //    sstby_cfg.power_supply = LPM_OPE_TO_SSTBY_EXFPWON_VBB;         /* Transit from ALLPWON OPE to EXFPWON SSTBY VBB */
     sstby_cfg.power_supply = LPM_OPE_TO_SSTBY_MINPWON_VBB;         /* Transit from ALLPWON OPE to MINPWON SSTBY VBB */
     sstby_cfg.speed = LPM_SSTBY_SPEED_MODE_OFF;             /* Transit time is not shortened */
-    sstby_cfg.wup   = LPM_SSTBY_WUP_ACCEL  | LPM_SSTBY_WUP_RTCALM ;  /* Wakeup interrupt : PORT_IRQ3 PORT_IRQ7  RTC_Alarm*/
+//  sstby_cfg.wup   = LPM_SSTBY_WUP_ACCEL  | LPM_SSTBY_WUP_RTCALM ;  /* Wakeup interrupt : PORT_IRQ3 PORT_IRQ7  RTC_Alarm*/
+    sstby_cfg.wup   = LPM_SSTBY_WUP_ACCEL;                           /* Wakeup interrupt : PORT_IRQ3 PORT_IRQ7  */
     err = R_LPM_SSTBYModeSetup(&sstby_cfg);
     APP_ERR_HANDLER(err);
 }
