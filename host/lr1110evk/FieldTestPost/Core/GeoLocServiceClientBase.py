@@ -146,6 +146,9 @@ class GeoLocServiceClientBase:
         return response
 
     def call_service_and_get_response(self, request_data):
+#       raise GeoLocServiceTimeoutException(
+#           GeoLocServiceClientBase.RESPONSE_TIMEOUT_S
+#       )
         try:
             response = self.produce_response_from_request(request_data)
         except requests.exceptions.ReadTimeout:

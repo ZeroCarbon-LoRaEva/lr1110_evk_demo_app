@@ -54,6 +54,7 @@ from lr1110evk.FieldTestPost.Core import (
 from lr1110evk.FieldTestPost.Core.GeoLocServiceClientBase import (
     GeoLocServiceClientReverseGeoCoding,
     GeoLocServiceBadResponseStatus,
+    GeoLocServiceTimeoutException,
 )
 from datetime import datetime
 import time
@@ -204,12 +205,16 @@ class VcpReader:
             self.print_if_verbose("Dry run: not contacting server")
             return None
         response = self.request_sender.send_request_get_response(request)
-        self.print_if_verbose(
-            "Response from server: '{}'".format(response.raw_response)
-        )
-#       print("PASS1")
-#       self.save_file(response)
-        return response
+        if response != None:
+            self.print_if_verbose(
+                "Response from server: '{}'".format(response.raw_response)
+            )
+#           print("PASS1")
+#           self.save_file(response)
+            return response
+        else:
+            print("SendGnssDataToServer No response")
+            return None
 
     def SendWiFiDataToServer(self):
         request = self.request_sender.build_wifi_requests(self.storage)
@@ -224,12 +229,16 @@ class VcpReader:
             print("Dry run: not contacting server")
             return None
         response = self.request_sender.send_request_get_response(request)
-        self.print_if_verbose(
-            "Response from server: '{}'".format(response.raw_response)
-        )
-#       print("PASS2")
-#       self.save_file(response)
-        return response
+        if response != None:
+            self.print_if_verbose(
+                "Response from server: '{}'".format(response.raw_response)
+            )
+#           print("PASS2")
+#           self.save_file(response)
+            return response
+        else:
+            print("SendWiFiDataToServer No response")
+            return None
 
     def ProduceResultWithReverseGeoLoc(self, geo_loc_response):
         reverse_geo_coding_client = GeoLocServiceClientReverseGeoCoding.from_default()
@@ -290,11 +299,14 @@ class VcpReader:
             response = self.SendGnssDataToServer()
         except NoNavMessageException:
             response = self.SendWiFiDataToServer()
-            kml_scan_type = kmlOutput.SCAN_TYPE_WIFI
-            data = [
-                data for data in self.storage if isinstance(data, ScannedMacAddress)
-            ]
-            self.result = self.ProduceResultFromResponseAndConfiguration(response)
+            if response != None:
+                kml_scan_type = kmlOutput.SCAN_TYPE_WIFI
+                data = [
+                    data for data in self.storage if isinstance(data, ScannedMacAddress)
+                ]
+                self.result = self.ProduceResultFromResponseAndConfiguration(response)
+            else:
+                self.result = None
         except SolverContactException as solver_exception:
             print(
                 "Exception when trying to contact solver: '{}'".format(solver_exception)
@@ -475,18 +487,21 @@ class VcpReader:
         elif data.startswith("#Receive from TX $TH "):
             comment = data[1:].strip()
             self.handle_comment(comment)
+			
+            try:
+                gTemp = float(re.sub(r"\D", "", data[27:31])) / 100
+                if data[26] == "-":
+                    gTemp = gTemp * -1
 
-            gTemp = float(re.sub(r"\D", "", data[27:31])) / 100
-            if data[26] == "-":
-                gTemp = gTemp * -1
+                gHumi = float(re.sub(r"\D", "", data[38:42])) / 100
 
-            gHumi = float(re.sub(r"\D", "", data[38:42])) / 100
+                gEdgerssi = float(re.sub(r"\D", "", data[50:53]))
+                if data[49] == "-":
+                    gEdgerssi = gEdgerssi * -1
 
-            gEdgerssi = float(re.sub(r"\D", "", data[50:53]))
-            if data[49] == "-":
-                gEdgerssi = gEdgerssi * -1
-
-            gGnss = int(re.sub(r"\D", "", data[62:66]))
+                gGnss = int(re.sub(r"\D", "", data[62:66]))
+            except Exception as e:
+                print("Read Data Error\n")
 
             print("DATE : "    ,dt_now   )
             print("gTemp    = ",gTemp    )

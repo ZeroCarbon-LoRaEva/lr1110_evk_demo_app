@@ -33,6 +33,7 @@ from .RequestBase import RequestWifiGls, RequestGnssGls
 from .ResponseBase import ResponseBase
 from .ExternalCoordinate import ExternalCoordinate
 from .GeoLocServiceClientBase import GeoLocServiceBadResponseStatus
+from .GeoLocServiceClientBase import GeoLocServiceTimeoutException
 
 
 class RequestSenderException(Exception):
@@ -121,13 +122,15 @@ class RequestSender:
         geoloc_service = self.get_geo_loc_service_for_request(request)
         try:
             response = geoloc_service.call_service_and_get_response(request.to_json())
+            return response
         except GeoLocServiceBadResponseStatus as bad_response:
             raise SolverContactException(
                 reason="{}: {}".format(
                     bad_response.bad_http_code_text, bad_response.erroneous_response
                 )
             )
-        return response
+        except GeoLocServiceTimeoutException as excp_timeout:
+            print("GeoLocServiceTimeoutException Timeout")
 
     def send_request(self, request):
         response = self.send_request_get_response(request)
